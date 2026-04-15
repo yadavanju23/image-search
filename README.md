@@ -46,11 +46,15 @@ image-search/
 ├── config.js
 ├── db.js
 ├── embeddings.js
+├── manual-dataset.js
 ├── search.js
 ├── upload.js
 ├── results.js
 ├── logger.js
-└── ui.js
+├── ui.js
+└── dataset/
+    └── manual/
+        └── manifest.json
 ```
 
 ### Module roles
@@ -58,6 +62,7 @@ image-search/
 - `config.js`: constants and storage keys
 - `db.js`: read/write localStorage helpers (dataset + logs)
 - `embeddings.js`: MobileNet init, embedding extraction, cosine similarity
+- `manual-dataset.js`: reads manual server folder manifest and indexes new files
 - `search.js`: score + sort + threshold filtering
 - `upload.js`: process dataset uploads and save embeddings
 - `results.js`: results rendering, lightbox, per-card download
@@ -117,6 +122,34 @@ Then open:
 - Duplicate names are auto-renamed safely (`image_1.jpg`, etc.)
 - Dataset counter updates automatically
 
+## 1B) Optional: use manual server dataset folder
+
+If you upload images manually from your server side, use this folder:
+
+- `image-search/dataset/manual/`
+
+Then update:
+
+- `image-search/dataset/manual/manifest.json`
+
+Example:
+
+```json
+{
+  "images": [
+    "./dataset/manual/shoe_01.jpg",
+    "./dataset/manual/shoe_02.png",
+    "./dataset/manual/shoe_03.webp"
+  ]
+}
+```
+
+In the app, click **Sync manual dataset folder**.
+
+- Only new files from manifest are indexed
+- Existing indexed paths are skipped (no duplicate re-index)
+- Supported formats: JPG/PNG/WEBP
+
 ## 2) Upload query image
 
 - Use top drag-drop area (or click to choose)
@@ -140,6 +173,46 @@ Then open:
 
 ---
 
+## Clear folder understanding (important)
+
+This project has **2 dataset sources**:
+
+1. **Manual server folder (real files)**
+   - Real path in project: `image-search/dataset/manual/`
+   - You upload/copy files here from your hosting/server panel.
+   - You must list those filenames in `image-search/dataset/manual/manifest.json`.
+   - App reads these files when you click **Sync manual dataset folder**.
+
+2. **UI upload dataset (browser storage)**
+   - When you upload from app UI, files are saved in browser `localStorage`.
+   - Virtual global folder path: `/global-images/`
+   - Virtual batch folder path: `dataset_YYYY-MM-DD_HH-MM-SS-sss`
+   - These are logical paths in JSON data, not physical disk folders.
+
+### End-to-end flow
+
+- Manual upload on server -> put image in `dataset/manual/` -> add path to `manifest.json` -> click **Sync manual dataset folder** -> image becomes searchable.
+- UI upload in app -> image saved to `/global-images/` + new `dataset_...` batch -> image becomes searchable immediately.
+- Search always uses the combined `dataset` index (manual + UI uploaded images).
+
+### How to know which image came from where
+
+Check `localStorage.dataset` entry fields:
+
+- `source: "manual"` -> came from `dataset/manual/manifest.json`
+- `source: "ui"` -> came from UI upload section
+- `path` -> exact indexed path used for matching
+- `globalPath` -> present for UI uploads, `null` for manual source
+
+Quick browser console check:
+
+```js
+const all = JSON.parse(localStorage.getItem("dataset") || "[]");
+console.table(all.map(({ filename, source, path, globalPath }) => ({ filename, source, path, globalPath })));
+```
+
+---
+
 ## Data storage
 
 Data is stored in browser `localStorage`:
@@ -157,8 +230,24 @@ Example dataset entry:
   "datasetFolder": "dataset_2026-04-15_12-05-38-102",
   "path": "dataset_2026-04-15_12-05-38-102/shoe_01.jpg",
   "globalPath": "/global-images/shoe_01.jpg",
+  "source": "ui",
   "dataURL": "data:image/jpeg;base64,...",
   "embedding": [0.023, 0.187]
+}
+```
+
+Example manual dataset entry:
+
+```json
+{
+  "filename": "shoe_manual.jpg",
+  "date": "2026-04-15",
+  "datasetFolder": "dataset_manual",
+  "path": "./dataset/manual/shoe_manual.jpg",
+  "globalPath": null,
+  "source": "manual",
+  "dataURL": "data:image/jpeg;base64,...",
+  "embedding": [0.112, 0.041]
 }
 ```
 
@@ -183,6 +272,7 @@ Example global image entry:
 - Dataset upload accepts only `image/jpeg`, `image/png`, `image/webp`
 - Unsupported files are skipped safely
 - Upload flow is: save to `/global-images/` -> create new `dataset_...` folder -> save searchable dataset copies
+- Manual sync flow is: `manifest.json` -> fetch `dataset/manual/*` files -> embed -> append to `dataset`
 - Old dataset folders are never overwritten (every upload creates a new folder)
 - Threshold slider updates label live and re-filters instantly
 - Search button disabled while model loads / while operations run

@@ -1,7 +1,8 @@
-import { DEFAULT_THRESHOLD } from "./config.js";
+import { DEFAULT_THRESHOLD, MANUAL_DATASET_MANIFEST_URL } from "./config.js";
 import { getDataset } from "./db.js";
 import { initMobileNet, isModelReady, getEmbedding, resetModel } from "./embeddings.js";
 import { appendLog, downloadCurrentResult, downloadFullLog } from "./logger.js";
+import { syncManualDataset } from "./manual-dataset.js";
 import { initLightbox, renderResults } from "./results.js";
 import { filterByThreshold, searchDataset } from "./search.js";
 import { processDatasetFiles } from "./upload.js";
@@ -39,6 +40,9 @@ const els = {
   datasetInput: document.getElementById("datasetInput"),
   uploadStatus: document.getElementById("uploadStatus"),
   uploadError: document.getElementById("uploadError"),
+  syncManualBtn: document.getElementById("syncManualBtn"),
+  manualStatus: document.getElementById("manualStatus"),
+  manualError: document.getElementById("manualError"),
   downloadLogBtn: document.getElementById("downloadLogBtn"),
   lightbox: document.getElementById("lightbox"),
   lightboxImage: document.getElementById("lightboxImage"),
@@ -220,6 +224,45 @@ async function handleDatasetUpload(files) {
   }
 }
 
+async function handleManualSync(isAutomatic = false) {
+  setInlineError(els.manualError, "");
+  if (!isModelReady()) {
+    setInlineError(els.manualError, "Model still loading, please wait");
+    return;
+  }
+
+  state.uploading = true;
+  updateSearchButtonState();
+  if (!isAutomatic) {
+    els.manualStatus.textContent = "Checking manual dataset manifest...";
+  }
+
+  try {
+    const result = await syncManualDataset(MANUAL_DATASET_MANIFEST_URL, (current, total) => {
+      els.manualStatus.textContent = `Syncing manual dataset ${current} of ${total}...`;
+    });
+
+    if (!result.ok) {
+      setInlineError(els.manualError, result.error);
+      return;
+    }
+
+    if (result.added > 0) {
+      els.manualStatus.textContent = `Manual sync complete: added ${result.added} image(s) from manifest.`;
+      updateDatasetCounter();
+    } else if (!isAutomatic) {
+      els.manualStatus.textContent = "Manual sync complete: no new images found.";
+    }
+  } catch (error) {
+    if (!isAutomatic) {
+      setInlineError(els.manualError, `Manual sync failed: ${error.message}`);
+    }
+  } finally {
+    state.uploading = false;
+    updateSearchButtonState();
+  }
+}
+
 function bindDragDrop() {
   const preventDefaults = (event) => {
     event.preventDefault();
@@ -268,20 +311,23 @@ function bindEvents() {
   });
   els.downloadLogBtn.addEventListener("click", downloadFullLog);
   els.datasetInput.addEventListener("change", (event) => handleDatasetUpload(event.target.files));
+  els.syncManualBtn.addEventListener("click", () => handleManualSync(false));
 
   els.retryModelBtn.addEventListener("click", async () => {
     resetModel();
     await loadModel();
+    await handleManualSync(true);
   });
 }
 
-function init() {
+async function init() {
   updateDatasetCounter();
   updateThresholdLabel();
   bindDragDrop();
   bindEvents();
   initLightbox(els.lightbox, els.lightboxImage, els.lightboxClose, els.resultsContainer);
-  loadModel();
+  await loadModel();
+  await handleManualSync(true);
 }
 
-init();
+void init();

@@ -87,6 +87,7 @@ export async function processDatasetFiles(files, onProgress) {
       datasetFolder,
       path: `${datasetFolder}/${datasetFilename}`,
       globalPath: `/global-images/${globalFilename}`,
+      source: "ui",
       dataURL,
       embedding,
     });
