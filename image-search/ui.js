@@ -206,10 +206,11 @@ async function handleDatasetUpload(files) {
       setInlineError(els.uploadError, uploadResult.error);
     }
 
-    els.uploadStatus.textContent = `Added ${uploadResult.added} image(s)${
-      uploadResult.skipped ? `, skipped ${uploadResult.skipped} non-image file(s)` : ""
+    els.uploadStatus.textContent = `Added ${uploadResult.added} image(s) to ${uploadResult.datasetFolder}${
+      uploadResult.skipped ? `, skipped ${uploadResult.skipped} unsupported file(s)` : ""
     }.`;
     updateDatasetCounter();
+    els.datasetInput.value = "";
   } catch (error) {
     setInlineError(els.uploadError, `Upload failed: ${error.message}`);
     els.uploadStatus.textContent = "";

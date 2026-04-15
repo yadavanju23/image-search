@@ -5,3 +5,4 @@ export const THRESHOLD_STEP = 0.01;
 
 export const STORAGE_KEY_DATASET = "dataset";
 export const STORAGE_KEY_LOG = "search_log";
+export const STORAGE_KEY_GLOBAL_IMAGES = "global_images";

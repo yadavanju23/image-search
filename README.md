@@ -108,7 +108,13 @@ Then open:
 
 - Go to **Add to Dataset** section
 - Select multiple images or an entire folder
+- Supported formats: **JPG, PNG, WEBP** only
 - Wait for progress text (`Processing X of Y images…`)
+- Each upload creates a brand new dataset folder:
+  - `dataset_YYYY-MM-DD_HH-MM-SS-sss`
+- Same uploaded files are also stored in:
+  - `/global-images/`
+- Duplicate names are auto-renamed safely (`image_1.jpg`, etc.)
 - Dataset counter updates automatically
 
 ## 2) Upload query image
@@ -138,7 +144,8 @@ Then open:
 
 Data is stored in browser `localStorage`:
 
-- `dataset`: array of image entries with embeddings
+- `dataset`: array of all searchable dataset entries (across all upload batches)
+- `global_images`: array of all uploaded images in virtual `/global-images/`
 - `search_log`: array of search result objects
 
 Example dataset entry:
@@ -147,9 +154,22 @@ Example dataset entry:
 {
   "filename": "shoe_01.jpg",
   "date": "2026-04-15",
-  "path": "dataset/2026-04-15/shoe_01.jpg",
+  "datasetFolder": "dataset_2026-04-15_12-05-38-102",
+  "path": "dataset_2026-04-15_12-05-38-102/shoe_01.jpg",
+  "globalPath": "/global-images/shoe_01.jpg",
   "dataURL": "data:image/jpeg;base64,...",
   "embedding": [0.023, 0.187]
+}
+```
+
+Example global image entry:
+
+```json
+{
+  "filename": "shoe_01.jpg",
+  "path": "/global-images/shoe_01.jpg",
+  "dataURL": "data:image/jpeg;base64,...",
+  "uploadedAt": "2026-04-15T12:05:38.102Z"
 }
 ```
 
@@ -160,7 +180,10 @@ Example dataset entry:
 ## Features and behavior details
 
 - Query input validates image MIME type
-- Non-image files are skipped for dataset upload
+- Dataset upload accepts only `image/jpeg`, `image/png`, `image/webp`
+- Unsupported files are skipped safely
+- Upload flow is: save to `/global-images/` -> create new `dataset_...` folder -> save searchable dataset copies
+- Old dataset folders are never overwritten (every upload creates a new folder)
 - Threshold slider updates label live and re-filters instantly
 - Search button disabled while model loads / while operations run
 - Friendly empty state when no matches found
@@ -225,6 +248,7 @@ If it serves root, app URL may be:
 - No backend: all data stays in user browser localStorage
 - Large datasets may hit localStorage quota
 - Model and dataset persistence are per browser/device
+- `/global-images/` and `dataset_...` are virtual storage paths (not real OS folders)
 - Requires internet on first load for CDN scripts
 
 ---

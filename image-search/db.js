@@ -1,4 +1,4 @@
-import { STORAGE_KEY_DATASET, STORAGE_KEY_LOG } from "./config.js";
+import { STORAGE_KEY_DATASET, STORAGE_KEY_GLOBAL_IMAGES, STORAGE_KEY_LOG } from "./config.js";
 
 function parseArray(value) {
   if (!value) return [];
@@ -44,6 +44,21 @@ export function appendToDataset(newEntries) {
   const existing = getDataset();
   const combined = existing.concat(newEntries);
   const status = saveDataset(combined);
+  return { ...status, data: combined };
+}
+
+export function getGlobalImages() {
+  return parseArray(localStorage.getItem(STORAGE_KEY_GLOBAL_IMAGES));
+}
+
+export function saveGlobalImages(entries) {
+  return writeArray(STORAGE_KEY_GLOBAL_IMAGES, entries);
+}
+
+export function appendGlobalImages(newEntries) {
+  const existing = getGlobalImages();
+  const combined = existing.concat(newEntries);
+  const status = saveGlobalImages(combined);
   return { ...status, data: combined };
 }
 
